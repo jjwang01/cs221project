@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split 
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 
 # TODO: add gzip code
@@ -35,14 +35,13 @@ X_train, X_test, y_train, y_test = train_test_split(onehot_encoded, y, test_size
 #flattened = np.array([y for x in X_test[:,0] for y in x])
 
 # MODELING and LEARNING
-reg = LinearRegression().fit(X_train, y_train)
+reg = LogisticRegression().fit(X_train, y_train)
 
 # INFERENCE
 y_pred = reg.predict(X_test)
 
 #print(flattened.shape, y_test.shape)
 
-#have to run pca in order for plot to show?
 #plt.scatter(X_test[:,0], y_test,  color='gray')
 #plt.plot(X_test[:,0], y_pred, color='red', linewidth=2)
 #plt.show()
