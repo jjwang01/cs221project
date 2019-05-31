@@ -102,6 +102,7 @@ model.train(training)
 accuracy = nltk.classify.accuracy(model, testing)
 """
 ######################################################################################
+
 # ONLY RUN ON GOOGLE CLOUD GPU -- TAKES A LONG TIME
 # Define models to train
 names = ["K Nearest Neighbors", "Decision Tree", "Random Forest", "Logistic Regression", "SGD Classifier",
@@ -111,26 +112,26 @@ classifiers = [
     KNeighborsClassifier(),
     DecisionTreeClassifier(),
     RandomForestClassifier(),
-    LogisticRegression(),
+    LogisticRegression(solver='lbfgs', ),
     SGDClassifier(max_iter = 100),
     MultinomialNB(),
     SVC(kernel = 'linear')
 ]
 
-models = zip(names, classifiers)
+models = list(zip(names, classifiers))
+
 
 for name, model in models:
     nltk_model = SklearnClassifier(model)
     nltk_model.train(training)
-    accuracy = nltk.classify.accuracy(nltk_model, testing)*100
+    accuracy = nltk.classify.accuracy(nltk_model, testing)
     print("{} Accuracy: {}".format(name, accuracy))
 
-# Ensemble methods = Voting classifier
-models = zip(names, classifiers)
 
+# Ensemble methods = Voting classifier
 nltk_ensemble = SklearnClassifier(VotingClassifier(estimators = models, voting = 'hard', n_jobs = -1))
 nltk_ensemble.train(training)
-accuracy = nltk.classify.accuracy(nltk_model, testing)*100
+accuracy = nltk.classify.accuracy(nltk_ensemble, testing)
 print("Voting Classifier: Accuracy: {}".format(accuracy))
 
 # make class label prediction for testing set
