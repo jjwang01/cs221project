@@ -23,7 +23,7 @@ print(user_args)
 pd.options.mode.chained_assignment = None
 # PREPROCESSING
 # put your directory here
-out_dir = "/mnt/c/Users/emily/Documents/Family/Emily/Stanford/Soph/Spring/221/cs221project"
+out_dir = "/mnt/c/Users/xSix.SixAxiS/Documents/Stanford/Spring 2019/CS 221/project/cs221project"
 filename = "DIAGNOSES_ICD.csv"
 diagnoses_icd = pd.read_csv("{}/{}".format(out_dir, filename))
 
@@ -76,16 +76,36 @@ elif '-c' in user_args:
     y = admissions['HOSPITAL_EXPIRE_FLAG'].to_numpy()
 elif '-a' in user_args:
     print("all")
-    X = onehot_encoder.fit_transform(result.astype(str).to_numpy().reshape(-1,len(result.columns)))
     y = result['HOSPITAL_EXPIRE_FLAG'].to_numpy()
+    result = result.drop(columns=['HOSPITAL_EXPIRE_FLAG', 'DIAGNOSIS'])
+    X = onehot_encoder.fit_transform(result.astype(str).to_numpy().reshape(-1,len(result.columns)))
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
 # MODELING and LEARNING
-reg = LogisticRegression().fit(X_train, y_train)
+reg = LogisticRegression(solver='lbfgs',
+    max_iter=500).fit(X_train, y_train)
 
 # INFERENCE
 y_pred = reg.predict(X_test)
 
 print('Train Score:', reg.score(X_train, y_train))
 print('Score:', reg.score(X_test, y_test))
+
+# need to use precision and recall instead to see false-positive rates
+average_precision = metrics.average_precision_score(y_test, y_pred)
+
+precision, recall, thresholds = metrics.precision_recall_curve(y_test, y_pred)
+f1 = metrics.f1_score(y_test, y_pred)
+auc = metrics.auc(recall, precision)
+
+
+print('Average precision-recall score: {0:0.2f}'.format(average_precision))
+print('F1 score: {0:0.2f}'.format(f1))
+print('AUC: {0:0.2f}'.format(auc))
+plt.plot([0,1], [0.5,0.5], linestyle='--')
+plt.plot(recall, precision, marker='.')
+plt.show()
+
+# should also use AUROC -- read up on what this means
+

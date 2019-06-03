@@ -12,11 +12,12 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.ensemble import VotingClassifier
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+from sklearn import metrics
+import matplotlib.pyplot as plt
 
 
 # PREPROCESSING
-out_dir = "/Users/justinwang/Desktop/CS 221/cs221project"
+out_dir = "/mnt/c/Users/xSix.SixAxiS/Documents/Stanford/Spring 2019/CS 221/project/cs221project"
 filename = "ADMISSIONS.csv"
 
 # load the dataset
@@ -112,7 +113,7 @@ classifiers = [
     KNeighborsClassifier(),
     DecisionTreeClassifier(),
     RandomForestClassifier(),
-    LogisticRegression(solver='lbfgs', ),
+    LogisticRegression(solver='lbfgs', max_iter = 500),
     SGDClassifier(max_iter = 100),
     MultinomialNB(),
     SVC(kernel = 'linear')
@@ -120,14 +121,34 @@ classifiers = [
 
 models = list(zip(names, classifiers))
 
-
+"""
 for name, model in models:
     nltk_model = SklearnClassifier(model)
     nltk_model.train(training)
     accuracy = nltk.classify.accuracy(nltk_model, testing)
     print("{} Accuracy: {}".format(name, accuracy))
 
+    test_true, test_pred = [], []
 
+    for i, (features, label) in enumerate(testing):
+        test_true.append(label)
+        observed = nltk_model.classify(features)
+        test_pred.append(observed)
+
+    # need to use precision and recall instead to see false-positive rates
+    average_precision = metrics.average_precision_score(test_true, test_pred)
+
+    precision, recall, thresholds = metrics.precision_recall_curve(test_true, test_pred)
+    f1 = metrics.f1_score(test_true, test_pred)
+    auc = metrics.auc(recall, precision)
+
+    print('Average precision-recall score: {0:0.2f}'.format(average_precision))
+    print('F1 score: {0:0.2f}'.format(f1))
+    print('AUC: {0:0.2f}'.format(auc))
+    plt.plot([0,1], [0.5,0.5], linestyle='--')
+    plt.plot(recall, precision, marker='.')
+    plt.show()
+"""
 # Ensemble methods = Voting classifier
 nltk_ensemble = SklearnClassifier(VotingClassifier(estimators = models, voting = 'hard', n_jobs = -1))
 nltk_ensemble.train(training)
@@ -140,10 +161,30 @@ txt_features, labels = zip(*testing)
 prediction = nltk_ensemble.classify_many(txt_features)
 
 # print a confusion matrix and a classification report
-print(classification_report(labels, prediction))
+print(metrics.classification_report(labels, prediction))
 
 print(pd.DataFrame(
-    confusion_matrix(labels, prediction),
+    metrics.confusion_matrix(labels, prediction),
     index = [['actual', 'actual'], ['not mortality', 'mortality']],
     columns = [['predicted', 'predicted'], ['not mortality', 'mortality']]))
 
+test_true, test_pred = [], []
+
+for i, (features, label) in enumerate(testing):
+    test_true.append(label)
+    observed = nltk_ensemble.classify(features)
+    test_pred.append(observed)
+
+# need to use precision and recall instead to see false-positive rates
+average_precision = metrics.average_precision_score(test_true, test_pred)
+
+precision, recall, thresholds = metrics.precision_recall_curve(test_true, test_pred)
+f1 = metrics.f1_score(test_true, test_pred)
+auc = metrics.auc(recall, precision)
+
+print('Average precision-recall score: {0:0.2f}'.format(average_precision))
+print('F1 score: {0:0.2f}'.format(f1))
+print('AUC: {0:0.2f}'.format(auc))
+plt.plot([0,1], [0.5,0.5], linestyle='--')
+plt.plot(recall, precision, marker='.')
+plt.show()
