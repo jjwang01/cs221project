@@ -21,12 +21,59 @@ from allennlp.modules.token_embedders import Embedding
 from allennlp.modules.seq2vec_encoders import Seq2VecEncoder, PytorchSeq2VecWrapper
 from allennlp.nn.util import get_text_field_mask, sequence_cross_entropy_with_logits
 from allennlp.training.metrics import CategoricalAccuracy
+from allennlp.training.metrics.auc import Auc
 from allennlp.data.iterators import BucketIterator
 from allennlp.training.trainer import Trainer
 from allennlp.predictors import Predictor
 from allennlp.common import JsonDict
 
 out_dir = "/Users/justinwang/Desktop/CS 221/cs221project"
+
+torch.manual_seed(1)
+
+class Config(dict):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+    
+    def set(self, key, val):
+        self[key] = val
+        setattr(self, key, val)
+        
+config = Config(
+    testing=True,
+    seed=1,
+    batch_size=64,
+    lr=3e-4,
+    epochs=2,
+    hidden_sz=64,
+    max_seq_len=100, # necessary to limit memory usage
+    max_vocab_size=100000,
+)
+
+class EMRDatasetReader(DatasetReader):
+    def __init__(self, token_indexers: Dict[str, TokenIndexer] = None) -> None:
+        super().__init__(lazy=False)
+        self.token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
+ 
+    @overrides
+    def text_to_instance(self, tokens: List[Token], label: str = None) -> Instance:
+        sentence_field = TextField(tokens, self.token_indexers)
+        fields = {"tokens": sentence_field}
+
+        if label:
+            label_field = LabelField(label=label)
+            fields["label"] = label_field
+
+        return Instance(fields)
+     
+    @overrides
+    def _read(self, file_path: str) -> Iterator[Instance]:
+        with open(file_path) as f:
+            for line in f:
+                words = line.strip().split()
+                yield self.text_to_instance([Token(word) for word in words[:-1]], words[-1])
 
 class LstmClassifier(Model):
     def __init__(self,
@@ -82,27 +129,80 @@ class SentenceClassifierPredictor(Predictor):
 EMBEDDING_DIM = 6
 HIDDEN_DIM = 6
 
-lstm = PytorchSeq2VecWrapper(torch.nn.LSTM(EMBEDDING_DIM, HIDDEN_DIM, batch_first=True))
+reader = EMRDatasetReader()
 
-vocab = Vocabulary.from_files("{}/vocabulary".format(out_dir))
+train_dataset = reader.read('{}/train.txt'.format(out_dir))
+val_dataset = reader.read('{}/val.txt'.format(out_dir))
+
+#print(vars(train_dataset[0].fields["tokens"]))
+
+vocab = Vocabulary.from_instances(train_dataset + val_dataset)
+token_embedding = Embedding(num_embeddings=vocab.get_vocab_size('tokens'), embedding_dim=EMBEDDING_DIM)
+word_embeddings = BasicTextFieldEmbedder({"tokens": token_embedding})
+
+# LSTM-RNN implementation as encoder
+lstm = PytorchSeq2VecWrapper(torch.nn.LSTM(EMBEDDING_DIM, HIDDEN_DIM, batch_first=True))
 model = LstmClassifier(word_embeddings, lstm, vocab)
-with open("{}/model.th".format(out_dir), 'rb') as f:
-    model.load_state_dict(torch.load(f))
-if cuda_device > -1:
-    model.cuda(cuda_device)
+
+if torch.cuda.is_available():
+    cuda_device = 0
+    model = model.cuda(cuda_device)
+else:
+    cuda_device = -1
+
+optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-5)
+iterator = BucketIterator(batch_size=32, sorting_keys=[("tokens", "num_tokens")])
+iterator.index_with(vocab)
+
+# tune hyperparameters
+trainer = Trainer(model=model,
+        optimizer=optimizer,
+        iterator=iterator,
+        train_dataset=train_dataset,
+        validation_dataset=val_dataset,
+        patience=10,
+        num_epochs=20,
+        cuda_device=cuda_device)
+
+trainer.train()
+
 predictor = SentenceClassifierPredictor(model, dataset_reader=reader)
 
-# EVALUATION
+"""
+# SANITY CHECK
+logits = predictor.predict("urinari pouch stone stent placement")['logits']
+label_id = np.argmax(logits)
+print(model.vocab.get_token_from_index(label_id, 'labels'))
+"""
+
 true_pos = 0
 false_pos = 0
 false_neg = 0
 
-fo = open('{}/test.txt'.format(out_dir), 'r')
+fo = open('{}/val.txt'.format(out_dir), 'r')
 lines = fo.readlines()
 fo.close()
 for line in lines:
     logits = predictor.predict(line[:-1])['logits']
+    print(logits)
     label_id = np.argmax(logits)
-    print(label_id)
-    print(type(label_id))
+    #print(label_id)
+    #print(type(label_id))
 
+"""
+# save the model
+with open("{}/model.th".format(out_dir), 'wb') as f:
+    torch.save(model.state_dict(), f)
+vocab.save_to_files("{}/vocabulary".format(out_dir))
+
+# reload the model
+vocab2 = Vocabulary.from_files("{}/vocabulary".format(out_dir))
+model2 = LstmClassifier(word_embeddings, lstm, vocab2)
+with open("{}/model.th".format(out_dir), 'rb') as f:
+    model2.load_state_dict(torch.load(f))
+if cuda_device > -1:
+    model2.cuda(cuda_device)
+predictor2 = SentenceClassifierPredictor(model2, dataset_reader=reader)
+logits2 = predictor2.predict("urinari pouch stone stent placement")['logits']
+np.testing.assert_array_almost_equal(logits2, logits)
+"""

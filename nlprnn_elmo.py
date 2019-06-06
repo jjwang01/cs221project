@@ -11,17 +11,17 @@ from allennlp.data.fields import TextField, LabelField
 from allennlp.data.dataset_readers import DatasetReader
 from allennlp.common.checks import ConfigurationError
 from allennlp.common.file_utils import cached_path
-from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
+from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer, ELMoTokenCharactersIndexer
 from allennlp.data.tokenizers import Token
 from allennlp.data.tokenizers.word_splitter import SpacyWordSplitter
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.models import Model
 from allennlp.modules.text_field_embedders import TextFieldEmbedder, BasicTextFieldEmbedder
-from allennlp.modules.token_embedders import Embedding
+from allennlp.modules.token_embedders import Embedding, ElmoTokenEmbedder
 from allennlp.modules.seq2vec_encoders import Seq2VecEncoder, PytorchSeq2VecWrapper
 from allennlp.nn.util import get_text_field_mask, sequence_cross_entropy_with_logits
 from allennlp.training.metrics import CategoricalAccuracy
-from allennlp.training.metrics import Auc
+from allennlp.training.metrics.auc import Auc
 from allennlp.data.iterators import BucketIterator
 from allennlp.training.trainer import Trainer
 from allennlp.predictors import Predictor
@@ -55,7 +55,7 @@ config = Config(
 class EMRDatasetReader(DatasetReader):
     def __init__(self, token_indexers: Dict[str, TokenIndexer] = None) -> None:
         super().__init__(lazy=False)
-        self.token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
+        self.token_indexers = token_indexers or {"tokens": ELMoTokenCharactersIndexer()}
  
     @overrides
     def text_to_instance(self, tokens: List[Token], label: str = None) -> Instance:
@@ -137,11 +137,16 @@ val_dataset = reader.read('{}/val.txt'.format(out_dir))
 #print(vars(train_dataset[0].fields["tokens"]))
 
 vocab = Vocabulary.from_instances(train_dataset + val_dataset)
-token_embedding = Embedding(num_embeddings=vocab.get_vocab_size('tokens'), embedding_dim=EMBEDDING_DIM)
-word_embeddings = BasicTextFieldEmbedder({"tokens": token_embedding})
+options_file = ('https://s3-us-west-2.amazonaws.com/allennlp/models/elmo'
+                '/2x1024_128_2048cnn_1xhighway/elmo_2x1024_128_2048cnn_1xhighway_options.json')
+weight_file = ('https://s3-us-west-2.amazonaws.com/allennlp/models/elmo'
+               '/2x1024_128_2048cnn_1xhighway/elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5')
+elmo_embedder = ElmoTokenEmbedder(options_file, weight_file)
+word_embeddings = BasicTextFieldEmbedder({"tokens": elmo_embedder})
 
+elmo_embedding_dim = 256
 # LSTM-RNN implementation as encoder
-lstm = PytorchSeq2VecWrapper(torch.nn.LSTM(EMBEDDING_DIM, HIDDEN_DIM, batch_first=True))
+lstm = PytorchSeq2VecWrapper(torch.nn.LSTM(elmo_embedding_dim, HIDDEN_DIM, batch_first=True))
 model = LstmClassifier(word_embeddings, lstm, vocab)
 
 if torch.cuda.is_available():
@@ -168,11 +173,28 @@ trainer.train()
 
 predictor = SentenceClassifierPredictor(model, dataset_reader=reader)
 
+"""
 # SANITY CHECK
 logits = predictor.predict("urinari pouch stone stent placement")['logits']
 label_id = np.argmax(logits)
 print(model.vocab.get_token_from_index(label_id, 'labels'))
+"""
 
+true_pos = 0
+false_pos = 0
+false_neg = 0
+
+fo = open('{}/val.txt'.format(out_dir), 'r')
+lines = fo.readlines()
+fo.close()
+for line in lines:
+    logits = predictor.predict(line[:-1])['logits']
+    print(logits)
+    label_id = np.argmax(logits)
+    #print(label_id)
+    #print(type(label_id))
+
+"""
 # save the model
 with open("{}/model.th".format(out_dir), 'wb') as f:
     torch.save(model.state_dict(), f)
@@ -188,3 +210,4 @@ if cuda_device > -1:
 predictor2 = SentenceClassifierPredictor(model2, dataset_reader=reader)
 logits2 = predictor2.predict("urinari pouch stone stent placement")['logits']
 np.testing.assert_array_almost_equal(logits2, logits)
+"""
