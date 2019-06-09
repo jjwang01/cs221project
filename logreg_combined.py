@@ -23,7 +23,8 @@ print(user_args)
 pd.options.mode.chained_assignment = None
 # PREPROCESSING
 # put your directory here
-out_dir = "/mnt/c/Users/xSix.SixAxiS/Documents/Stanford/Spring 2019/CS 221/project/cs221project"
+out_dir = "/home/emily2h/Documents/cs221project"
+#out_dir = "/Users/justinwang/Desktop/CS 221/cs221project"
 filename = "DIAGNOSES_ICD.csv"
 diagnoses_icd = pd.read_csv("{}/{}".format(out_dir, filename))
 
@@ -34,6 +35,7 @@ admissions = pd.read_csv("{}/{}".format(out_dir, filename))
 # need to merge these together
 result = pd.merge(diagnoses_icd, admissions, on='SUBJECT_ID')
 print(result['HOSPITAL_EXPIRE_FLAG'].value_counts())
+flag = ""
 
 # use linear regression on numpy arrays to try to predict the expire flag
 # one-hot encode ICD9_CODE b/c it's a categorical variable, avoid misrepresenting data
@@ -41,19 +43,22 @@ onehot_encoder = preprocessing.OneHotEncoder(sparse=True)
 X = [] 
 if '-i' in user_args and '-e' in user_args:
     print("ICD_9 and ethnicity")
+    flag = "ICD_9 and Ethnicity"
     X = onehot_encoder.fit_transform(result[['ICD9_CODE', 'ETHNICITY']].astype(str).to_numpy().reshape(-1,2))
     y = result['HOSPITAL_EXPIRE_FLAG'].to_numpy()
 elif '-i' in user_args:
     print("ICD_9")
+    flag = "ICD_9"
     X = onehot_encoder.fit_transform(result['ICD9_CODE'].astype(str).to_numpy().reshape(-1,1))
     y = result['HOSPITAL_EXPIRE_FLAG'].to_numpy()
 elif '-e' in user_args:
     print("ethnicity")
+    flag = "Ethnicity"
     X = onehot_encoder.fit_transform(result['ETHNICITY'].astype(str).to_numpy().reshape(-1,1))
     y = result['HOSPITAL_EXPIRE_FLAG'].to_numpy()
 elif '-d' in user_args:
     print("ED stay")
-
+    flag = "ED Stay"
     # PREPROCESSING
     admissions = admissions[['EDREGTIME', 'EDOUTTIME', 'HOSPITAL_EXPIRE_FLAG']]
     admissions = admissions.dropna()
@@ -66,7 +71,7 @@ elif '-d' in user_args:
     y = admissions['HOSPITAL_EXPIRE_FLAG'].to_numpy()
 elif '-c' in user_args:
     print("ICU stay")
-
+    flag = "ICU Stay"
     # each time is a date and time stamp
     # need to use timedelta in order to get time differences
     X = admissions[['ADMITTIME', 'DISCHTIME']]
@@ -76,8 +81,9 @@ elif '-c' in user_args:
     y = admissions['HOSPITAL_EXPIRE_FLAG'].to_numpy()
 elif '-a' in user_args:
     print("all")
+    flag = "All Features"
     y = result['HOSPITAL_EXPIRE_FLAG'].to_numpy()
-    result = result.drop(columns=['HOSPITAL_EXPIRE_FLAG', 'DIAGNOSIS'])
+    result = result.drop(columns=['HOSPITAL_EXPIRE_FLAG', 'DIAGNOSIS', 'DEATHTIME'])
     X = onehot_encoder.fit_transform(result.astype(str).to_numpy().reshape(-1,len(result.columns)))
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
@@ -105,6 +111,9 @@ print('F1 score: {0:0.2f}'.format(f1))
 print('AUC: {0:0.2f}'.format(auc))
 plt.plot([0,1], [0.5,0.5], linestyle='--')
 plt.plot(recall, precision, marker='.')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.title("Precision-Recall Curve of {}".format(flag))
 plt.show()
 
 # should also use AUROC -- read up on what this means
