@@ -24,7 +24,7 @@ pd.options.mode.chained_assignment = None
 # PREPROCESSING
 # put your directory here
 out_dir = "/home/emily2h/Documents/cs221project"
-#out_dir = "/Users/justinwang/Desktop/CS 221/cs221project"
+#out_dir = "/mnt/c/Users/xSix.SixAxiS/Documents/Stanford/Spring 2019/CS 221/project/cs221project"
 filename = "DIAGNOSES_ICD.csv"
 diagnoses_icd = pd.read_csv("{}/{}".format(out_dir, filename))
 
@@ -83,7 +83,7 @@ elif '-a' in user_args:
     print("all")
     flag = "All Features"
     y = result['HOSPITAL_EXPIRE_FLAG'].to_numpy()
-    result = result.drop(columns=['HOSPITAL_EXPIRE_FLAG', 'DIAGNOSIS', 'DEATHTIME'])
+    result = result.drop(columns=['HOSPITAL_EXPIRE_FLAG', 'DIAGNOSIS', 'DEATHTIME', 'DISCHARGE_LOCATION'])
     X = onehot_encoder.fit_transform(result.astype(str).to_numpy().reshape(-1,len(result.columns)))
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
@@ -97,6 +97,7 @@ y_pred = reg.predict(X_test)
 
 print('Train Score:', reg.score(X_train, y_train))
 print('Score:', reg.score(X_test, y_test))
+print(metrics.confusion_matrix(y_test, y_pred))
 
 # need to use precision and recall instead to see false-positive rates
 average_precision = metrics.average_precision_score(y_test, y_pred)
@@ -116,5 +117,4 @@ plt.ylabel('Precision')
 plt.title("Precision-Recall Curve of {}".format(flag))
 plt.show()
 
-# should also use AUROC -- read up on what this means
 
