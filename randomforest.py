@@ -7,7 +7,9 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn import metrics
 import matplotlib.pyplot as plt
 
-out_dir = "/mnt/c/Users/xSix.SixAxiS/Documents/Stanford/Spring 2019/CS 221/project/cs221project"
+#comment this out @justin/gaurab
+out_dir = "/home/emily2h/Documents/cs221project"
+#out_dir = "/Users/justinwang/Desktop/CS 221/cs221project"
 
 filename = "DIAGNOSES_ICD.csv"
 diagnoses_icd = pd.read_csv("{}/{}".format(out_dir, filename))
@@ -29,7 +31,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 #X_train = sc.fit_transform(X_train)  
 #X_test = sc.transform(X_test)
 
-regressor = RandomForestRegressor(n_estimators=3, random_state=0)  
+regressor = RandomForestRegressor(n_estimators=3, random_state=0, n_jobs=-1)  
 regressor.fit(X_train, y_train)  
 y_pred = regressor.predict(X_test) 
 
@@ -50,4 +52,7 @@ print('F1 score: {0:0.2f}'.format(f1))
 print('AUC: {0:0.2f}'.format(auc))
 plt.plot([0,1], [0.5,0.5], linestyle='--')
 plt.plot(recall, precision, marker='.')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.title('Precision-Recall Curve of Random Forests (3 Trees)')
 plt.show()
