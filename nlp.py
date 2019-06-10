@@ -17,7 +17,8 @@ import matplotlib.pyplot as plt
 
 
 # PREPROCESSING
-out_dir = "/mnt/c/Users/xSix.SixAxiS/Documents/Stanford/Spring 2019/CS 221/project/cs221project"
+#out_dir = "/mnt/c/Users/xSix.SixAxiS/Documents/Stanford/Spring 2019/CS 221/project/cs221project"
+out_dir = "/Users/justinwang/Desktop/CS 221/cs221project"
 filename = "ADMISSIONS.csv"
 
 # load the dataset
@@ -167,7 +168,7 @@ print(pd.DataFrame(
     metrics.confusion_matrix(labels, prediction),
     index = [['actual', 'actual'], ['not mortality', 'mortality']],
     columns = [['predicted', 'predicted'], ['not mortality', 'mortality']]))
-df_confusion = pd.crosstab(y_test, y_pred, rownames = ['Actual'], colnames=['Predicted'])
+df_confusion = pd.crosstab(labels, prediction) 
 df_norm = df_confusion.values / df_confusion.sum(axis=1)[:,None]
 
 ax = sn.heatmap(df_norm, annot=True, annot_kws={"size": 20}, cmap="YlGnBu")
@@ -197,6 +198,6 @@ print('AUC: {0:0.2f}'.format(auc))
 plt.plot([0,1], [0.5,0.5], linestyle='--')
 plt.plot(recall, precision, marker='.')
 plt.xlabel('Recall')
-plt.xlabel('Precision')
+plt.ylabel('Precision')
 plt.title("Precision-Recall Curve NLP")
 #plt.show()
