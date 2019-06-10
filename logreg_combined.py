@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sn
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split 
 from sklearn.linear_model import LogisticRegression
@@ -97,7 +98,19 @@ y_pred = reg.predict(X_test)
 
 print('Train Score:', reg.score(X_train, y_train))
 print('Score:', reg.score(X_test, y_test))
-print(metrics.confusion_matrix(y_test, y_pred))
+df_confusion = pd.crosstab(y_test, y_pred, rownames = ['Actual'], colnames=['Predicted'])
+print(df_confusion)
+df_norm = df_confusion.values / df_confusion.sum(axis=1)[:,None]
+print(df_norm)
+
+
+#ax = sn.heatmap(df_confusion, annot=True, cmap="YlGnBu", annot_kws={"size": 20})
+ax = sn.heatmap(df_norm, annot=True, annot_kws={"size": 20}, cmap="YlGnBu")
+plt.xlabel('Predicted label', fontsize=20)
+plt.ylabel('True label', fontsize=20)
+plt.title('Confusion Matrix, w/Normalization', fontsize=20)
+#plt.title("Confusion Matrix, w/o Normalization", fontsize=20)
+plt.show()
 
 # need to use precision and recall instead to see false-positive rates
 average_precision = metrics.average_precision_score(y_test, y_pred)
@@ -115,6 +128,4 @@ plt.plot(recall, precision, marker='.')
 plt.xlabel('Recall')
 plt.ylabel('Precision')
 plt.title("Precision-Recall Curve of {}".format(flag))
-plt.show()
-
-
+#plt.show()

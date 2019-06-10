@@ -167,6 +167,15 @@ print(pd.DataFrame(
     metrics.confusion_matrix(labels, prediction),
     index = [['actual', 'actual'], ['not mortality', 'mortality']],
     columns = [['predicted', 'predicted'], ['not mortality', 'mortality']]))
+df_confusion = pd.crosstab(y_test, y_pred, rownames = ['Actual'], colnames=['Predicted'])
+df_norm = df_confusion.values / df_confusion.sum(axis=1)[:,None]
+
+ax = sn.heatmap(df_norm, annot=True, annot_kws={"size": 20}, cmap="YlGnBu")
+plt.xlabel('Predicted label', fontsize=20)
+plt.ylabel('True label', fontsize=20)
+plt.title('Confusion Matrix, w/Normalization', fontsize=20)
+plt.show()
+
 
 test_true, test_pred = [], []
 
@@ -187,4 +196,7 @@ print('F1 score: {0:0.2f}'.format(f1))
 print('AUC: {0:0.2f}'.format(auc))
 plt.plot([0,1], [0.5,0.5], linestyle='--')
 plt.plot(recall, precision, marker='.')
-plt.show()
+plt.xlabel('Recall')
+plt.xlabel('Precision')
+plt.title("Precision-Recall Curve NLP")
+#plt.show()
